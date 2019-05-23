@@ -15,7 +15,6 @@
 * places, or events is intended or should be inferred.
 *----------------------------------------------------------------------------------
 **/
-
 /** -------------------------------------------------------------
 # Azure Storage Blob Sample - Demonstrate how to use the Blob Storage service. 
 # Blob storage stores unstructured data such as text, binary data, documents or media files. 
@@ -39,6 +38,7 @@ use MicrosoftAzure\Storage\Blob\BlobRestProxy;
 use MicrosoftAzure\Storage\Common\Exceptions\ServiceException;
 use MicrosoftAzure\Storage\Blob\Models\ListBlobsOptions;
 use MicrosoftAzure\Storage\Blob\Models\CreateContainerOptions;
+use MicrosoftAzure\Storage\Blob\Models\CreateBlobOptions;
 use MicrosoftAzure\Storage\Blob\Models\PublicAccessType;
 
 $connectionString = "DefaultEndpointsProtocol=https;AccountName=agiswebapp;AccountKey=ttNexieWL2Ne3xsOtdj0d5+YKks7bZiJOn6NL8bTGYaHMlTBDK13xZhR95feJYE1hVpBq0KmdcUsxJ/x0c7hgg==";
@@ -46,8 +46,9 @@ $connectionString = "DefaultEndpointsProtocol=https;AccountName=agiswebapp;Accou
 // Create blob client.
 $blobClient = BlobRestProxy::createBlobService($connectionString);
 
-$fileToUpload = "HelloWorld.txt";
+$fileToUpload = "gambar.png";
 
+$url = "";
 if (!isset($_GET["Cleanup"])) {
     // Create container options object.
     $createContainerOptions = new CreateContainerOptions();
@@ -67,19 +68,19 @@ if (!isset($_GET["Cleanup"])) {
     // If this value is not specified in the request, container data is
     // private to the account owner.
     $createContainerOptions->setPublicAccess(PublicAccessType::CONTAINER_AND_BLOBS);
-
+    
     // Set container metadata.
     $createContainerOptions->addMetaData("key1", "value1");
     $createContainerOptions->addMetaData("key2", "value2");
 
-      $containerName = "blockblobs".generateRandomString();
+    $containerName = "blockblobs".generateRandomString();
 
     try {
         // Create container.
         $blobClient->createContainer($containerName, $createContainerOptions);
 
         // Getting local file so that we can upload it to Azure
-        $myfile = fopen($fileToUpload, "w") or die("Unable to open file!");
+        $myfile = fopen($fileToUpload, "r") or die("Unable to open file!");
         fclose($myfile);
         
         # Upload file as a block blob
@@ -88,13 +89,13 @@ if (!isset($_GET["Cleanup"])) {
         echo "<br />";
         
         $content = fopen($fileToUpload, "r");
-
+        
         //Upload blob
         $blobClient->createBlockBlob($containerName, $fileToUpload, $content);
-
+        
         // List blobs.
         $listBlobsOptions = new ListBlobsOptions();
-        $listBlobsOptions->setPrefix("HelloWorld");
+        $listBlobsOptions->setPrefix("gambar");
 
         echo "These are the blobs present in the container: ";
 
@@ -103,16 +104,12 @@ if (!isset($_GET["Cleanup"])) {
             foreach ($result->getBlobs() as $blob)
             {
                 echo $blob->getName().": ".$blob->getUrl()."<br />";
+                $url = $blob->getUrl();
             }
-        
+
             $listBlobsOptions->setContinuationToken($result->getContinuationToken());
         } while($result->getContinuationToken());
         echo "<br />";
-
-        // Get blob.
-        echo "This is the content of the blob uploaded: ";
-        $blob = $blobClient->getBlob($containerName, $fileToUpload);
-        fpassthru($blob->getContentStream());
         echo "<br />";
     }
     catch(ServiceException $e){
@@ -134,7 +131,6 @@ if (!isset($_GET["Cleanup"])) {
 } 
 else 
 {
-
     try{
         // Delete container.
         echo "Deleting Container".PHP_EOL;
@@ -153,7 +149,106 @@ else
 }
 ?>
 
+<!DOCTYPE html>
+<html>
 
-<form method="post" action="phpQS.php?Cleanup&containerName=<?php echo $containerName; ?>">
-    <button type="submit">Press to clean up all resources created by this sample</button>
-</form>
+    <head>
+        <title>Analyze Sample</title>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.min.js"></script>
+    </head>
+
+    <body>
+
+        <script type="text/javascript">
+            function processImage() {
+                // **********************************************
+                // *** Update or verify the following values. ***
+                // **********************************************
+
+                // Replace <Subscription Key> with your valid subscription key.
+                var subscriptionKey = "23b8f26fd9d445e78f28b684c656dfbe";
+
+                // You must use the same Azure region in your REST API method as you used to
+                // get your subscription keys. For example, if you got your subscription keys
+                // from the West US region, replace "westcentralus" in the URL
+                // below with "westus".
+                //
+                // Free trial subscription keys are generated in the "westus" region.
+                // If you use a free trial subscription key, you shouldn't need to change
+                // this region.
+                var uriBase =
+                    "https://southeastasia.api.cognitive.microsoft.com/vision/v2.0/analyze";
+                // "https://southeastasia.api.cognitive.microsoft.com/";
+
+                // Request parameters.
+                var params = {
+                    "visualFeatures": "Categories,Description,Color",
+                    "language": "en",
+                };
+
+                // Display the image.
+                var sourceImageUrl = document.getElementById("inputImage").value;
+                document.querySelector("#sourceImage").src = sourceImageUrl;
+
+                // Make the REST API call.
+                $.ajax({
+                        url: uriBase + "?" + $.param(params),
+
+                        // Request headers.
+                        beforeSend: function (xhrObj) {
+                            xhrObj.setRequestHeader("Content-Type", "application/json");
+                            xhrObj.setRequestHeader(
+                                "Ocp-Apim-Subscription-Key", subscriptionKey);
+                        },
+
+                        type: "POST",
+
+                        // Request body.
+                        data: '{"url": ' + '"' + sourceImageUrl + '"}',
+                    })
+
+                    .done(function (data) {
+                        // Show formatted JSON on webpage.
+                        $("#responseTextArea").val(JSON.stringify(data, null, 2));
+                    })
+
+                    .fail(function (jqXHR, textStatus, errorThrown) {
+                        // Display error message.
+                        var errorString = (errorThrown === "") ? "Error. " :
+                            errorThrown + " (" + jqXHR.status + "): ";
+                        errorString += (jqXHR.responseText === "") ? "" :
+                            jQuery.parseJSON(jqXHR.responseText).message;
+                        alert(errorString);
+                    });
+            };
+
+        </script>
+
+        <h1>Blob</h1>
+
+        <form method="post" action="test.php?Cleanup&containerName=<?php echo $containerName; ?>">
+            <button type="submit">Press to clean up all resources created by this sample</button>
+        </form>
+        
+
+        <h1>Vision</h1>
+
+        <input type="text" name="inputImage" id="inputImage" value="<?=$url;?>" />
+        <button onclick="processImage()">Start Analyzing</button>
+
+        <br><br>
+        <div id="wrapper" style="width:1020px; display:table;">
+            <div id="jsonOutput" style="width:600px; display:table-cell;">
+                Response:
+                <br><br>
+                <textarea id="responseTextArea" class="UIInput" style="width:580px; height:400px;"></textarea>
+            </div>
+            <div id="imageDiv" style="width:420px; display:table-cell;">
+                Source image:
+                <br><br>
+                <img id="sourceImage" width="400" />
+            </div>
+        </div>
+    </body>
+
+</html>
