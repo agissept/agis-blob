@@ -41,17 +41,19 @@ use MicrosoftAzure\Storage\Blob\Models\CreateContainerOptions;
 use MicrosoftAzure\Storage\Blob\Models\CreateBlobOptions;
 use MicrosoftAzure\Storage\Blob\Models\PublicAccessType;
 
-$connectionString = "DefaultEndpointsProtocol=https;AccountName=agiswebapp;AccountKey=ttNexieWL2Ne3xsOtdj0d5+YKks7bZiJOn6NL8bTGYaHMlTBDK13xZhR95feJYE1hVpBq0KmdcUsxJ/x0c7hgg==";
+$connectionString="DefaultEndpointsProtocol=https;AccountName=agiswebapp;AccountKey=ttNexieWL2Ne3xsOtdj0d5+YKks7bZiJOn6NL8bTGYaHMlTBDK13xZhR95feJYE1hVpBq0KmdcUsxJ/x0c7hgg==";
 
 // Create blob client.
-$blobClient = BlobRestProxy::createBlobService($connectionString);
+$blobClient=BlobRestProxy::createBlobService($connectionString);
 
-$fileToUpload = "gambar.png";
+$containerName="blockblobs".generateRandomString();
 
-$url = "";
-if (!isset($_GET["Cleanup"])) {
+
+if (isset($_GET["Submit"])) {
+    $fileToUpload=strtolower($_FILES["image"]["name"]);
+
     // Create container options object.
-    $createContainerOptions = new CreateContainerOptions();
+    $createContainerOptions=new CreateContainerOptions();
 
     // Set public access policy. Possible values are
     // PublicAccessType::CONTAINER_AND_BLOBS and PublicAccessType::BLOBS_ONLY.
@@ -68,99 +70,83 @@ if (!isset($_GET["Cleanup"])) {
     // If this value is not specified in the request, container data is
     // private to the account owner.
     $createContainerOptions->setPublicAccess(PublicAccessType::CONTAINER_AND_BLOBS);
-    
+
     // Set container metadata.
     $createContainerOptions->addMetaData("key1", "value1");
     $createContainerOptions->addMetaData("key2", "value2");
 
-    $containerName = "blockblobs".generateRandomString();
 
     try {
         // Create container.
         $blobClient->createContainer($containerName, $createContainerOptions);
 
-        // Getting local file so that we can upload it to Azure
-        $myfile = fopen($fileToUpload, "r") or die("Unable to open file!");
-        fclose($myfile);
-        
-        # Upload file as a block blob
-        echo "Uploading BlockBlob: ".PHP_EOL;
+        # Upload file as a block blob echo "Uploading BlockBlob: ".PHP_EOL;
         echo $fileToUpload;
         echo "<br />";
-        
-        $content = fopen($fileToUpload, "r");
-        
+
+        $content=fopen($_FILES["image"]["tmp_name"], "r");
+
         //Upload blob
         $blobClient->createBlockBlob($containerName, $fileToUpload, $content);
-        
-        // List blobs.
-        $listBlobsOptions = new ListBlobsOptions();
-        $listBlobsOptions->setPrefix("gambar");
 
-        echo "These are the blobs present in the container: ";
+        header("Location: index.php");
 
-        do{
-            $result = $blobClient->listBlobs($containerName, $listBlobsOptions);
-            foreach ($result->getBlobs() as $blob)
-            {
-                echo $blob->getName().": ".$blob->getUrl()."<br />";
-                $url = $blob->getUrl();
-            }
-
-            $listBlobsOptions->setContinuationToken($result->getContinuationToken());
-        } while($result->getContinuationToken());
-        echo "<br />";
-        echo "<br />";
     }
-    catch(ServiceException $e){
+
+    catch(ServiceException $e) {
         // Handle exception based on error codes and messages.
         // Error codes and messages are here:
         // http://msdn.microsoft.com/library/azure/dd179439.aspx
-        $code = $e->getCode();
-        $error_message = $e->getMessage();
+        $code=$e->getCode();
+        $error_message=$e->getMessage();
         echo $code.": ".$error_message."<br />";
     }
-    catch(InvalidArgumentTypeException $e){
+
+    catch(InvalidArgumentTypeException $e) {
         // Handle exception based on error codes and messages.
         // Error codes and messages are here:
         // http://msdn.microsoft.com/library/azure/dd179439.aspx
-        $code = $e->getCode();
-        $error_message = $e->getMessage();
-        echo $code.": ".$error_message."<br />";
-    }
-} 
-else 
-{
-    try{
-        // Delete container.
-        echo "Deleting Container".PHP_EOL;
-        echo $_GET["containerName"].PHP_EOL;
-        echo "<br />";
-        $blobClient->deleteContainer($_GET["containerName"]);
-    }
-    catch(ServiceException $e){
-        // Handle exception based on error codes and messages.
-        // Error codes and messages are here:
-        // http://msdn.microsoft.com/library/azure/dd179439.aspx
-        $code = $e->getCode();
-        $error_message = $e->getMessage();
+        $code=$e->getCode();
+        $error_message=$e->getMessage();
         echo $code.": ".$error_message."<br />";
     }
 }
-?>
 
+else if(isset($_GET["Cleanup"])) {
+    try {
+        $blobClient->deleteContainer($_GET["containerName"]);
+        header("Location: index.php");
+
+    }
+
+    catch(ServiceException $e) {
+        // Handle exception based on error codes and messages.
+        // Error codes and messages are here:
+        // http://msdn.microsoft.com/library/azure/dd179439.aspx
+        $code=$e->getCode();
+        $error_message=$e->getMessage();
+        echo $code.": ".$error_message."<br />";
+    }
+}
+
+?>
 <!DOCTYPE html>
 <html>
 
     <head>
         <title>Analyze Sample</title>
         <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.min.js"></script>
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
+            integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+        <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"
+            integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous">
+        </script>
     </head>
 
     <body>
 
         <script type="text/javascript">
-            function processImage() {
+            function processImage(url) {
                 // **********************************************
                 // *** Update or verify the following values. ***
                 // **********************************************
@@ -176,19 +162,22 @@ else
                 // Free trial subscription keys are generated in the "westus" region.
                 // If you use a free trial subscription key, you shouldn't need to change
                 // this region.
-                var uriBase =
-                    "https://southeastasia.api.cognitive.microsoft.com/vision/v2.0/analyze";
+                var uriBase = "https://southeastasia.api.cognitive.microsoft.com/vision/v2.0/analyze";
                 // "https://southeastasia.api.cognitive.microsoft.com/";
 
                 // Request parameters.
                 var params = {
                     "visualFeatures": "Categories,Description,Color",
                     "language": "en",
-                };
+                }
+
+                ;
 
                 // Display the image.
-                var sourceImageUrl = document.getElementById("inputImage").value;
-                document.querySelector("#sourceImage").src = sourceImageUrl;
+                var sourceImageUrl = url;
+                document.querySelector('#sourceImage').setAttribute('src', sourceImageUrl);
+
+                console.log(url);
 
                 // Make the REST API call.
                 $.ajax({
@@ -196,59 +185,112 @@ else
 
                         // Request headers.
                         beforeSend: function (xhrObj) {
-                            xhrObj.setRequestHeader("Content-Type", "application/json");
-                            xhrObj.setRequestHeader(
-                                "Ocp-Apim-Subscription-Key", subscriptionKey);
-                        },
+                                xhrObj.setRequestHeader("Content-Type", "application/json");
+                                xhrObj.setRequestHeader("Ocp-Apim-Subscription-Key", subscriptionKey);
+                            }
+
+                            ,
 
                         type: "POST",
 
                         // Request body.
                         data: '{"url": ' + '"' + sourceImageUrl + '"}',
-                    })
+                    }
 
-                    .done(function (data) {
+                ).done(function (data) {
                         // Show formatted JSON on webpage.
                         $("#responseTextArea").val(JSON.stringify(data, null, 2));
-                    })
+                        $("#caption").text(data.description.captions[0].text);
+                    }
 
-                    .fail(function (jqXHR, textStatus, errorThrown) {
+                ).fail(function (jqXHR, textStatus, errorThrown) {
                         // Display error message.
-                        var errorString = (errorThrown === "") ? "Error. " :
-                            errorThrown + " (" + jqXHR.status + "): ";
-                        errorString += (jqXHR.responseText === "") ? "" :
-                            jQuery.parseJSON(jqXHR.responseText).message;
+                        var errorString = (errorThrown === "") ? "Error. " : errorThrown + " (" + jqXHR.status +
+                            "): ";
+                        errorString += (jqXHR.responseText === "") ? "" : jQuery.parseJSON(jqXHR.responseText)
+                            .message;
                         alert(errorString);
-                    });
-            };
+                    }
+
+                );
+            }
+
+            ;
 
         </script>
+        <div class="container">
+            <div class="row">
+                <div class="col-12">
+                    <h2>Compute Vision with Blob Storage</h2>
+                    <form method="post" action="index.php?Submit" enctype="multipart/form-data">
+                        <div class="form-group"><label for="image">File Image</label><input type="file"
+                                class="form-control-file" id="image" name="image"></div><button type="submit"
+                            class="btn btn-primary">Upload Image</button>
+                    </form>
+                    <script></script><br><br>
+                    <div id="wrapper" style="width:1020px; display:table;">
+                        <div id="jsonOutput" style="width:600px; display:table-cell;">Response: <br><br><textarea
+                                id="responseTextArea" class="UIInput" style="width:580px; height:400px;"></textarea>
+                        </div>
+                        <div id="imageDiv" style="width:420px; display:table-cell;">Source image: <br><br><img
+                                id="sourceImage" width="400" src="" /></div>
+                    </div>
+                    <div class="row">
+                        <div class="col-12">
+                            Caption:<br>
+                            <div id="caption"></div>
+                        </div>
+                    </div>
+                    <table class='table table-striped'>
+                        <thead>
+                            <tr>
+                                <th scope='col'>Name</th>
+                                <th scope='col'>URL</th>
+                                <th scope='col'>View</th>
+                                <th scope='col'>Delete</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php
+                         $listBlobsOptions=new ListBlobsOptions();
+$blobContainers=$blobClient->listContainers();
+$blobContainerArray=$blobContainers->getContainers();
 
-        <h1>Blob</h1>
+$firstContaier = $blobContainerArray[0]->getName();
+$firstBlob = $blobClient->listBlobs($firstContaier, $listBlobsOptions);
 
-        <form method="post" action="test.php?Cleanup&containerName=<?php echo $containerName; ?>">
-            <button type="submit">Press to clean up all resources created by this sample</button>
-        </form>
-        
+$firstUrl = $firstBlob->getBlobs()[0]->getUrl();
 
-        <h1>Vision</h1>
+?>
+                            <script>
+                                processImage('<?=$firstUrl;?>')
 
-        <input type="text" name="inputImage" id="inputImage" value="<?=$url;?>" />
-        <button onclick="processImage()">Start Analyzing</button>
+                            </script>
+                            <?php
 
-        <br><br>
-        <div id="wrapper" style="width:1020px; display:table;">
-            <div id="jsonOutput" style="width:600px; display:table-cell;">
-                Response:
-                <br><br>
-                <textarea id="responseTextArea" class="UIInput" style="width:580px; height:400px;"></textarea>
-            </div>
-            <div id="imageDiv" style="width:420px; display:table-cell;">
-                Source image:
-                <br><br>
-                <img id="sourceImage" width="400" />
-            </div>
-        </div>
+foreach($blobContainerArray as $container) {
+    $result=$blobClient->listBlobs($container->getName(), $listBlobsOptions);
+
+    foreach ($result->getBlobs() as $blob) {
+        ?><tr>
+                                <th><?=$blob->getName()?></th>
+                                <td><?=$blob->getUrl()?></td>
+                                <td><button type="button" class="btn btn-primary"
+                                        onClick="processImage('<?=$blob->getUrl();?>')">View</button></td>
+                                <td>
+                                    <form method="post"
+                                        action="index.php?Cleanup&containerName=<?php echo $container->getName(); ?>">
+                                        <button type="submit" class="btn btn-danger">Delete</button></form>
+                                </td>
+                            </tr><?php
+    }
+}
+
+?></tbody>
+                    </table>
     </body>
+    </div>
+    </div>
+    </div>
 
 </html>
